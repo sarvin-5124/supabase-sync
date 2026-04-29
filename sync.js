@@ -44,13 +44,6 @@ const SOURCES = [
       r.country,
       r.created_at,
     ],
-    toMaster: (r) => ({
-      name: r.name ?? "",
-      email: r.email ?? "",
-      phone: String(r.phone ?? ""),
-      source: "AFK Waitlist",
-      created_at: r.created_at,
-    }),
   },
   {
     sheetName: "Beat Everyday",
@@ -84,13 +77,6 @@ const SOURCES = [
       r.scene,
       r.created_at,
     ],
-    toMaster: (r) => ({
-      name: r.name ?? "",
-      email: r.email ?? "",
-      phone: r.phone ?? "",
-      source: "Beat Everyday",
-      created_at: r.created_at,
-    }),
   },
   {
     sheetName: "AFK Extension",
@@ -127,13 +113,6 @@ const SOURCES = [
       r.referral_code,
       r.created_at,
     ],
-    toMaster: (r) => ({
-      name: r.name ?? "",
-      email: "",
-      phone: r.phone ?? "",
-      source: "AFK Extension",
-      created_at: r.created_at,
-    }),
   },
   {
     sheetName: "Yogal",
@@ -170,13 +149,6 @@ const SOURCES = [
       r.trigger,
       r.createdAt,
     ],
-    toMaster: (r) => ({
-      name: r.name ?? "",
-      email: r.email ?? "",
-      phone: r.phone ?? "",
-      source: "Yogal",
-      created_at: r.createdAt,
-    }),
   },
 ];
 
@@ -242,36 +214,6 @@ async function writeSheet(sheets, sheetName, rows) {
   });
 }
 
-// ─── Master deduplication ──────────────────────────────────────────────────
-// Primary key: email (lowercase). Secondary key: phone (for email-less rows).
-// When two entries share a key, keep the one with the earlier created_at.
-
-function buildMaster(masterRows) {
-  const byEmail = new Map();
-  const byPhone = new Map();
-
-  for (const row of masterRows) {
-    const email = row.email?.trim().toLowerCase();
-    const phone = row.phone?.trim();
-
-    if (email) {
-      const existing = byEmail.get(email);
-      if (!existing || row.created_at < existing.created_at) {
-        byEmail.set(email, row);
-      }
-    } else if (phone) {
-      const existing = byPhone.get(phone);
-      if (!existing || row.created_at < existing.created_at) {
-        byPhone.set(phone, row);
-      }
-    }
-  }
-
-  return [...byEmail.values(), ...byPhone.values()].sort((a, b) =>
-    (a.created_at ?? "").localeCompare(b.created_at ?? ""),
-  );
-}
-
 // ─── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -284,7 +226,6 @@ async function main() {
   const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
   const existingTitles = meta.data.sheets.map((s) => s.properties.title);
 
-  const allMasterRows = [];
   const results = [];
 
   for (const source of SOURCES) {
@@ -308,33 +249,12 @@ async function main() {
       const sheetRows = [source.headers, ...rows.map(source.toRow)];
       await writeSheet(sheets, source.sheetName, sheetRows);
 
-      rows.forEach((r) => allMasterRows.push(source.toMaster(r)));
-
       results.push(`✓ ${source.sheetName}: ${rows.length} rows`);
     } catch (err) {
       results.push(`✗ ${source.sheetName}: ${err.message}`);
       console.error(err.message);
     }
   }
-
-  // Write master sheet
-  const MASTER_SHEET = "Master";
-  const masterRows = buildMaster(allMasterRows);
-
-  await ensureSheet(sheets, MASTER_SHEET, existingTitles);
-  const masterHeaders = ["Name", "Email", "Phone", "Source", "Created At"];
-  const masterData = [
-    masterHeaders,
-    ...masterRows.map((r) => [
-      r.name,
-      r.email,
-      r.phone,
-      r.source,
-      r.created_at,
-    ]),
-  ];
-  await writeSheet(sheets, MASTER_SHEET, masterData);
-  results.push(`✓ Master: ${masterRows.length} unique leads`);
 
   console.log("\n── Sync complete ──────────────────────────────");
   results.forEach((r) => console.log(r));
