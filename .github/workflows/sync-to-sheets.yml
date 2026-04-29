@@ -1,0 +1,37 @@
+name: Sync Leads to Google Sheets
+
+on:
+  schedule:
+    - cron: "0 */3 * * *" # every 3 hours
+  workflow_dispatch: # allow manual trigger from GitHub Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: sync
+        run: bun install --frozen-lockfile
+
+      - name: Run sync
+        working-directory: sync
+        run: bun run sync
+        env:
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          SUPABASE_URL_AFK_WAITLIST: ${{ secrets.SUPABASE_URL_AFK_WAITLIST }}
+          SUPABASE_KEY_AFK_WAITLIST: ${{ secrets.SUPABASE_KEY_AFK_WAITLIST }}
+          SUPABASE_URL_BEAT_EVERYDAY: ${{ secrets.SUPABASE_URL_BEAT_EVERYDAY }}
+          SUPABASE_KEY_BEAT_EVERYDAY: ${{ secrets.SUPABASE_KEY_BEAT_EVERYDAY }}
+          SUPABASE_URL_AFK_EXTENSION: ${{ secrets.SUPABASE_URL_AFK_EXTENSION }}
+          SUPABASE_KEY_AFK_EXTENSION: ${{ secrets.SUPABASE_KEY_AFK_EXTENSION }}
+          SUPABASE_URL_YOGAL: ${{ secrets.SUPABASE_URL_YOGAL }}
+          SUPABASE_KEY_YOGAL: ${{ secrets.SUPABASE_KEY_YOGAL }}
