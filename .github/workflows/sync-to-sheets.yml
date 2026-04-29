@@ -18,11 +18,9 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        working-directory: sync
         run: bun install --frozen-lockfile
 
       - name: Run sync
-        working-directory: sync
         run: bun run sync
         env:
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
